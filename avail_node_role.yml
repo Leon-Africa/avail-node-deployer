@@ -1,0 +1,47 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CloudFormation Template to create an IAM Role for Avail Full Node Deployment
+
+Resources:
+  AvailNodeRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: AvailNodeRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: 
+                - ec2.amazonaws.com
+                - ssm.amazonaws.com
+            Action: 'sts:AssumeRole'
+      Policies:
+        - PolicyName: EC2FullAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: 
+                  - 'ec2:*'
+                Resource: '*'
+        - PolicyName: S3FullAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: 
+                  - 's3:*'
+                Resource: '*'
+        - PolicyName: SSMFullAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: 
+                  - 'ssm:*'
+                Resource: '*'
+
+Outputs:
+  AvailNodeRoleArn:
+    Description: 'ARN of the IAM role for Avail Full Node deployment'
+    Value: !GetAtt AvailNodeRole.Arn

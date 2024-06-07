@@ -32,3 +32,26 @@ override.tf.json
 # Ignore CLI configuration files
 .terraformrc
 terraform.rc
+
+# Ansible-specific files
+# Ignore Ansible temporary files
+*.retry
+
+# Ignore inventory files
+inventory/
+host_vars/
+group_vars/
+
+# Ignore Ansible secrets
+*.vault
+*.vault.yml
+
+# Ignore Ansible logs
+ansible.log
+
+# Ignore Ansible roles and collections directories if generated dynamically
+roles/
+collections/
+
+# Ignore Ansible playbook backups
+*.orig
