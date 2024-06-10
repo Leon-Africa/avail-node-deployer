@@ -13,21 +13,19 @@ NOTE: Current version deploys to AWS cloud.
 We will be using an automated role to allow you to securely deploy your Avail Node to your AWS account:
 
 - Go to [AWS Console](https://aws.amazon.com/console/) > CloudFormation > Create stack > With new resources (standard).
-- Copy paste the contents of ```avail_node_role.yml``` file in this repo and follow the prompts to create the stack.
+- Select upload template and upload the file ```avail_node_role.yml``` from this repo and follow the prompts to create the stack.
 - Once deployed select the newly created stack.
 - Go to the **Outputs** tab.
-- Note the value of the `AvailNodeRoleArn` key.
+- Note the value of the `AccessKeyId` and `SecretAccessKey`.
 
 ## Docker 
 
 Please ensure that you have [Docker](https://www.docker.com/products/docker-desktop/) installed to use the preconfigure image which will setup all the dependancies and you can deploy from the container:
 
 
-````docker build --no-cache -t ubuntu_launcher .````
+````docker build -t avail-full-node-deployer .````
 
-````docker run -it --name launcher ubuntu_launcher /bin/bash```` 
-
-
+````docker run -it avail-full-node-deployer````
 
 NOTE: You will deploy and access your Avail node from the Docker container.
 
@@ -38,17 +36,29 @@ Automatically deploy the infrastructure and configuration as code for a fully ru
 
 ````./deploy-avail-node.sh````
 
-NOTE: when prompted for the ````role arn```` enter the value for ````AvailNodeRoleArn```` recieved from the Cloudformation deployment.
+NOTE: 
+- when prompted for the ````AccessKey````  and ````SecretKey```` enter the values recieved from the Cloudformation deployment.
+- enter Default region name as ````eu-west-1```` and Default output format as ````json````
+- when prompted for Node name enter a name for your Avail Node
 
-That's it you now have a fully running Avail Node in AWS with metrics and dashboards.
+
+That's it you will now have a fully running Avail Node in AWS with monitoring, observability and logging.
 
 ### Connect to your Avail Node:
 
-````aws ssm start-session --target instance-id````
+You can connect to your node in 2 ways. 
 
-Note: you can find your instance-id in the logs from running the ansible script [the blue color] or in the aws console.
+1.  From AWS Console
+    
+    Connect -> Session Manager -> Connect
+2. From the docker container:
 
-When your ssm session starts ensure that you:
+    ````aws ssm start-session --target instance-id````
+
+Note: you can find your instance-id in the aws console
+
+
+In both cases when your ssm session starts ensure that you:
 
 ````sudo su````
 
@@ -64,7 +74,7 @@ So if you want to get log data for the running Avail node:
 
 ````tail -f logs/node/node.log````
 
-# Metrics
+## Metrics
 
 Prometheus:  ````your_aws_instance_ip:9090````
 
@@ -72,10 +82,23 @@ Grafana: ````your_aws_instance_ip:3000```` [username: admin, password: admin]
 
 Note: Only accesible from the host machine you deployed from. 
 
-# Logs
+## Logs
 
-Grafana has data source setup for [Loki](https://github.com/grafana/loki) which is used to aggregate logs from the Avail node.
+Grafana has data source setup for [Loki](https://github.com/grafana/loki) which is used to aggregate logs from the Avail node. Query Avail Node data using [LogQl](https://grafana.com/docs/loki/latest/query/) from Grafana.
+
+## Dashboards
+A host of dashboards are avaliable in Grafana with information about the running Avail node.
 
 # Clean up
 
 To clean up resources simply run ````terraform destroy```` from the ````terraform/aws```` directory.
+
+Note: Do not delete your container before terraform destroy as your [state](https://developer.hashicorp.com/terraform/language/state) is in the container. If for some reason you have exited your container to access it again simply run:
+
+````docker exec -it launcher /bin/bash````
+
+
+# Improvements
+Check the issues/project section for coming updates. 
+
+Please feel free to create an issue/s for any ideas/improvements/fixes/enhancements. 

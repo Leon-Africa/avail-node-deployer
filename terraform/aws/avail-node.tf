@@ -17,7 +17,7 @@ data "http" "public_ip" {
   url = "http://ifconfig.me"
 }
 
-#Create VPC
+# Create VPC
 resource "aws_vpc" "avail-node-vpc" {
   cidr_block           = "10.0.0.0/16"
   enable_dns_support   = true
@@ -28,7 +28,7 @@ resource "aws_vpc" "avail-node-vpc" {
   }
 }
 
-#Create Public Subnet
+# Create Public Subnet
 resource "aws_subnet" "avail-node-public" {
   vpc_id            = aws_vpc.avail-node-vpc.id
   availability_zone = "eu-west-1a"
@@ -39,7 +39,7 @@ resource "aws_subnet" "avail-node-public" {
   }
 }
 
-#Create Private Subnet
+# Create Private Subnet
 resource "aws_subnet" "avail-node-private" {
   vpc_id            = aws_vpc.avail-node-vpc.id
   availability_zone = "eu-west-1a"
@@ -50,7 +50,7 @@ resource "aws_subnet" "avail-node-private" {
   }
 }
 
-#Create internet Gateway
+# Create Internet Gateway
 resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.avail-node-vpc.id
 
@@ -59,7 +59,7 @@ resource "aws_internet_gateway" "igw" {
   }
 }
 
-#Create Route Table
+# Create Route Table
 resource "aws_route_table" "avail-node-public-rt" {
   vpc_id = aws_vpc.avail-node-vpc.id
   route {
@@ -68,15 +68,13 @@ resource "aws_route_table" "avail-node-public-rt" {
   }
 }
 
-#Associate Route Table to Subnet
+# Associate Route Table to Subnet
 resource "aws_route_table_association" "avail-node" {
   subnet_id      = aws_subnet.avail-node-public.id
   route_table_id = aws_route_table.avail-node-public-rt.id
-
 }
 
-
-#Create Security Group
+# Create Security Group
 resource "aws_security_group" "avail-node-sg" {
   vpc_id = aws_vpc.avail-node-vpc.id
 
@@ -90,7 +88,7 @@ resource "aws_security_group" "avail-node-sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # Inbound rule to allow traffic on port 9090 from the public IP of the host machine [to access prometheus UI]
+  # Inbound rule to allow traffic on port 9090 from the public IP of the host machine [to access Prometheus UI]
   ingress {
     from_port   = 9090
     to_port     = 9090
@@ -98,17 +96,16 @@ resource "aws_security_group" "avail-node-sg" {
     cidr_blocks = ["${data.http.public_ip.body}/32"]
   }
 
-  # Inbound rule to allow traffic on port 9090 from the public IP of the host machine [to access prometheus UI]
+  # Inbound rule to allow traffic on port 3000 from the public IP of the host machine [to access Prometheus UI]
   ingress {
     from_port   = 3000
     to_port     = 3000
     protocol    = "tcp"
     cidr_blocks = ["${data.http.public_ip.body}/32"]
   }
-
 }
 
-#AWS SSM Role
+# AWS SSM Role
 resource "aws_iam_instance_profile" "ssm-profile" {
   name = "EC2SSM"
   role = aws_iam_role.ssm-role.name
@@ -119,12 +116,12 @@ resource "aws_iam_role" "ssm-role" {
   description        = "EC2 SSM Role"
   assume_role_policy = <<EOF
 {
-"Version": "2012-10-17",
-"Statement": {
-"Effect": "Allow",
-"Principal": {"Service": "ec2.amazonaws.com"},
-"Action": "sts:AssumeRole"
-}
+  "Version": "2012-10-17",
+  "Statement": {
+    "Effect": "Allow",
+    "Principal": {"Service": "ec2.amazonaws.com"},
+    "Action": "sts:AssumeRole"
+  }
 }
 EOF
 
@@ -148,11 +145,10 @@ resource "aws_iam_role_policy_attachment" "ec2-policy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2FullAccess"
 }
 
-
-#Create the EC2 Instance
+# Create the EC2 Instance
 resource "aws_instance" "avail-node" {
-  ami                         = "ami-0c1c30571d2dae5c9"
-  instance_type               = "t2.medium"
+  ami                         = "ami-0776c814353b4814d"
+  instance_type               = "t2.2xlarge"
   subnet_id                   = aws_subnet.avail-node-public.id
   availability_zone           = "eu-west-1a"
   iam_instance_profile        = aws_iam_instance_profile.ssm-profile.name
@@ -172,10 +168,9 @@ resource "aws_instance" "avail-node" {
     Terraform = "true"
     Name      = "avail-node"
   }
-
 }
 
-#Create EBS Volume
+# Create EBS Volume
 resource "aws_ebs_volume" "avail-node" {
   availability_zone = "eu-west-1a"
   size              = "300"
@@ -187,11 +182,10 @@ resource "aws_ebs_volume" "avail-node" {
 
   lifecycle {
     prevent_destroy = false
-    # ignore_changes  = [avail-node]
   }
 }
 
-#Attach EBS Volume
+# Attach EBS Volume
 resource "aws_volume_attachment" "avail-node" {
   device_name  = "/dev/sdh"
   volume_id    = aws_ebs_volume.avail-node.id
@@ -199,10 +193,30 @@ resource "aws_volume_attachment" "avail-node" {
   force_detach = false
 }
 
+# Create S3 Bucket
 resource "aws_s3_bucket" "ssm-bucket" {
   bucket = "avail-node-aws-ssm-connection-playbook"
 
   tags = {
     Name = "SSM Connection Bucket"
   }
+
+  lifecycle {
+    prevent_destroy = false
+  }
+}
+
+# Null resource to empty the S3 bucket before deletion
+resource "null_resource" "empty_ssm_bucket" {
+  provisioner "local-exec" {
+    command = <<EOT
+    aws s3 rm s3://${aws_s3_bucket.ssm-bucket.bucket} --recursive
+    EOT
+  }
+
+  triggers = {
+    bucket_name = "${aws_s3_bucket.ssm-bucket.bucket}"
+  }
+
+  depends_on = [aws_s3_bucket.ssm-bucket]
 }

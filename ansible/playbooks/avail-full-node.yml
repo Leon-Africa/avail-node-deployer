@@ -1,13 +1,13 @@
-- name: avail-no-node-setup
+---
+- name: avail-full-node
   hosts: all
-  vars_files:
-    - ../group_vars/avail-node-vars.yml
-  vars:
-    ansible_shell_executable: /bin/bash
-  become: true
+  # vars_files:
+  #   - ../group_vars/avail-node-vars.yml
+  become: yes
   remote_user: ubuntu
   gather_facts: false
   vars:
+    ansible_shell_executable: /bin/bash
     ansible_connection: aws_ssm
     ansible_aws_ssm_profile: default
     ansible_aws_ssm_bucket_name: avail-node-aws-ssm-connection-playbook
@@ -19,8 +19,8 @@
     - name: Install Git
       shell: |
         sudo apt update
-        sudo apt upgrade
-        sudo apt install git-all
+        sudo apt upgrade -y
+        sudo apt install git-all -y
       register: result_git_install
 
     - name: Install required packages
@@ -40,61 +40,70 @@
         state: present
         update_cache: yes
 
-    - name: Download rustup installation script
-      get_url:
-        url: https://sh.rustup.rs
-        dest: /tmp/rustup-init.sh
-        mode: '0755'
+    - name: Install and configure Rust
+      shell: |
+        # Download rustup installation script
+        curl https://sh.rustup.rs -o /tmp/rustup-init.sh
+        chmod +x /tmp/rustup-init.sh
 
-    - name: Run rustup installation script
-      command: /tmp/rustup-init.sh -y
-      args:
-        creates: /root/.cargo/bin/rustup
+        # Run rustup installation script
+        /tmp/rustup-init.sh -y
 
-    - name: Source Cargo environment
-      shell: source $HOME/.cargo/env
-      args:
-        executable: /bin/bash
+        # Ensure Cargo environment is sourced in .bashrc
+        if ! grep -q 'source \$HOME/.cargo/env' ~/.bashrc; then
+          echo 'source \$HOME/.cargo/env' >> ~/.bashrc
+        fi
 
-    - name: Verify Rust installation
-      command: rustc --version
-      register: rustc_version
+        # Source the Cargo environment
+        source \$HOME/.cargo/env
 
-    - name: Print Rust version
+        # Verify Rust installation
+        rustc_version=\$(rustc --version)
+        echo "Rust version: \$rustc_version"
+
+        # Set Rust to default stable
+        rustup default stable
+
+        # Update Rust toolchain
+        rustup update
+
+        # Update nightly Rust toolchain
+        rustup update nightly
+
+        # Add nightly WebAssembly target
+        rustup target add wasm32-unknown-unknown --toolchain nightly
+
+        # Verify Rust toolchain
+        rustup_show=\$(rustup show)
+        echo "\$rustup_show"
+
+        # Verify nightly Rust toolchain
+        rustup_nightly_show=\$(rustup +nightly show)
+        echo "\$rustup_nightly_show"
+      register: rust_install_output
+
+    - name: Print Rust installation output
       debug:
-        msg: "Rust version: {{ rustc_version.stdout }}"
+        var: rust_install_output.stdout_lines
 
-    - name: Set Rust to default stable
-      command: rustup default stable
+    - name: Check if Rust is available
+      shell: |
+        source \$HOME/.cargo/env
+        if command -v rustc >/dev/null 2>&1; then
+          echo "Rust is available"
+        else
+          echo "Rust is not available"
+          exit 1
+        fi
+      register: rust_check_output
 
-    - name: Update Rust toolchain
-      command: rustup update
-
-    - name: Update nightly Rust toolchain
-      command: rustup update nightly
-
-    - name: Add nightly WebAssembly target
-      command: rustup target add wasm32-unknown-unknown --toolchain nightly
-
-    - name: Verify Rust toolchain
-      command: rustup show
-      register: rustup_show
-
-    - name: Print Rust toolchain information
+    - name: Print Rust check output
       debug:
-        msg: "{{ rustup_show.stdout }}"
-
-    - name: Verify nightly Rust toolchain
-      command: rustup +nightly show
-      register: rustup_nightly_show
-
-    - name: Print nightly Rust toolchain information
-      debug:
-        msg: "{{ rustup_nightly_show.stdout }}"
+        var: rust_check_output.stdout_lines
 
     - name: Install and Start Prometheus
       shell: |
-        cd ../../../../
+        cd /tmp
         sudo useradd --system --no-create-home --shell /bin/false prometheus
         wget https://github.com/prometheus/prometheus/releases/download/v2.51.1/prometheus-2.51.1.linux-amd64.tar.gz
         tar -xvf prometheus-2.51.1.linux-amd64.tar.gz
@@ -107,7 +116,7 @@
         cd ..
         rm -rf prometheus*
 
-        sudo cat <<EOF > /etc/systemd/system/prometheus.service
+        sudo cat <<EOL > /etc/systemd/system/prometheus.service
         [Unit]
         Description=Prometheus
         Wants=network-online.target
@@ -122,17 +131,17 @@
         Type=simple
         Restart=on-failure
         RestartSec=5s
-        ExecStart=/usr/local/bin/prometheus \
-          --config.file=/etc/prometheus/prometheus.yml \
-          --storage.tsdb.path=/data \
-          --web.console.templates=/etc/prometheus/consoles \
-          --web.console.libraries=/etc/prometheus/console_libraries \
-          --web.listen-address=0.0.0.0:9090 \
+        ExecStart=/usr/local/bin/prometheus \\
+          --config.file=/etc/prometheus/prometheus.yml \\
+          --storage.tsdb.path=/data \\
+          --web.console.templates=/etc/prometheus/consoles \\
+          --web.console.libraries=/etc/prometheus/console_libraries \\
+          --web.listen-address=0.0.0.0:9090 \\
           --web.enable-lifecycle
 
         [Install]
         WantedBy=multi-user.target
-        EOF
+        EOL
 
         sudo systemctl enable prometheus
         sudo systemctl start prometheus
@@ -152,10 +161,10 @@
       systemd:
         name: prometheus
         state: restarted
-      
+
     - name: Install and Start Node Exporter
       shell: |
-        cd ../../../../
+        cd /tmp
         sudo useradd --system --no-create-home --shell /bin/false node_exporter
         wget https://github.com/prometheus/node_exporter/releases/download/v1.3.1/node_exporter-1.3.1.linux-amd64.tar.gz
         tar -xvf node_exporter-1.3.1.linux-amd64.tar.gz
@@ -163,7 +172,7 @@
         rm -rf node_exporter*
         node_exporter --version
 
-        sudo cat <<EOF > /etc/systemd/system/node_exporter.service
+        sudo cat <<EOL > /etc/systemd/system/node_exporter.service
         [Unit]
         Description=Node Exporter
         Wants=network-online.target
@@ -178,12 +187,12 @@
         Type=simple
         Restart=on-failure
         RestartSec=5s
-        ExecStart=/usr/local/bin/node_exporter \
+        ExecStart=/usr/local/bin/node_exporter \\
         --collector.logind
 
         [Install]
         WantedBy=multi-user.target
-        EOF
+        EOL
 
         sudo systemctl enable node_exporter
         sudo systemctl start node_exporter
@@ -202,7 +211,7 @@
         sudo mkdir -p /etc/loki
         sudo chown loki:loki /etc/loki
 
-        sudo cat <<EOF > /etc/systemd/system/loki.service
+        sudo cat <<EOL > /etc/systemd/system/loki.service
         [Unit]
         Description=Loki Service
         After=network.target
@@ -215,7 +224,7 @@
 
         [Install]
         WantedBy=multi-user.target
-        EOF
+        EOL
 
         sudo systemctl enable loki
         sudo systemctl start loki
@@ -241,7 +250,7 @@
         sudo chown promtail:promtail /etc/promtail
         sudo chown promtail:promtail /var/lib/promtail
 
-        sudo cat <<EOF > /etc/systemd/system/promtail.service
+        sudo cat <<EOL > /etc/systemd/system/promtail.service
         [Unit]
         Description=Promtail Service
         After=network.target
@@ -254,7 +263,7 @@
 
         [Install]
         WantedBy=multi-user.target
-        EOF
+        EOL
 
         sudo systemctl enable promtail
         sudo systemctl start promtail
@@ -268,7 +277,7 @@
 
     - name: Install Grafana
       shell: |
-        cd ../../../../
+        cd /tmp
         sudo apt-get install -y apt-transport-https software-properties-common
         wget -q -O - https://packages.grafana.com/gpg.key | sudo apt-key add -
         echo "deb https://packages.grafana.com/oss/deb stable main" | sudo tee -a /etc/apt/sources.list.d/grafana.list
@@ -277,18 +286,23 @@
         sudo systemctl enable grafana-server
         sudo systemctl start grafana-server
       register: result_grafana_install
-      
+
     - name: Transfer datasource.yml to remote host
       copy:
-        src:  grafana/datasource.yml
+        src: grafana/datasource.yml
         dest: /etc/grafana/provisioning/datasources/datasource.yml
+    
+    - name: Transfer dashboards.yml to remote host
+      copy:
+        src: grafana/dashboards.yml
+        dest: /etc/grafana/provisioning/dashboards/dashboards.yml
 
     - name: Transfer Grafana dashboards to remote host
       copy:
         src: "{{ item }}"
         dest: /etc/grafana/provisioning/dashboards/
       loop:
-        - grafana/avail_node_dashboard
+        - grafana/avail_node_dashboard.json
         - grafana/substrate_advanced_dashboard.json
         - grafana/substrate_basic_dashboard.json
         - grafana/node_exporter_dashboard.json
@@ -307,34 +321,47 @@
 
     - name: Clone Avail Node
       shell: |
-        cd ../../../../home/
+        cd /home/
         git clone https://github.com/availproject/avail.git
-      when: not dir_check_gno.stat.exists
-      register: result_clone_avail_node 
+      when: not dir_check_avail_node.stat.exists
+      register: result_clone_avail_node
     
-    - name: Build Avail Node
-      shell: |
-        cd ../../../../home/
-        export RUST
-        export PATH=$GOPATH/bin:$PATH RUST
-        cd avail
-        cargo build --release
-      register: result_gnovm_install
+    - name: Clean up any existing build locks
+      shell: find /home/avail -name "*.lock" -type f -delete
 
     - name: Create log directories
       shell: |
-        cd ../../../../home/
+        cd /home/
         mkdir logs
         cd logs
         mkdir node
         touch node/node.log
       register: result_logs
 
-    - name: Run Avail Node
+    - name: Update Cargo.lock file
       shell: |
-        cd ../../../../home/
-        export RUST
-        export PATH=$GOPATH/bin:$PATH RUST
-        cd avail
-        cargo run --release -- --name {{ node_name }} --chain turing -d ./output >> /home/logs/node/node.log 2>&1 &
+        cd /home/avail
+        export PATH=$HOME/.cargo/bin:$PATH
+        cargo update
+      register: result_cargo_update
+
+    #COMPILING TAKES QUITE SOME TIME
+    # - name: Run Avail Node [Compile and Run]
+    #   shell: |
+    #     cd /home/avail
+    #     export PATH=$HOME/.cargo/bin:$PATH
+    #     mkdir -p output
+    #     cargo run --release -- --chain mainnet -d ./output > /home/logs/node/node.log 2>&1 &
+    #   register: result_avail_node
+
+    - name: Run Avail Node [Binary]
+      shell: |
+        cd /home/avail
+        export PATH=$HOME/.cargo/bin:$PATH
+        mkdir -p output
+        curl -L -o avail-node.tar.gz https://github.com/availproject/avail/releases/download/v2.2.3.0-rc1/x86_64-ubuntu-2004-avail-node.tar.gz
+        tar -xzvf avail-node.tar.gz
+        ./avail-node --name {{ node_name }} --chain turing -d ./output > /home/logs/node/node.log 2>&1 &
+      args:
+        executable: /bin/bash
       register: result_avail_node

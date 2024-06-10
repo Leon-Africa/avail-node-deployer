@@ -37,11 +37,6 @@ terraform.rc
 # Ignore Ansible temporary files
 *.retry
 
-# Ignore inventory files
-inventory/
-host_vars/
-group_vars/
-
 # Ignore Ansible secrets
 *.vault
 *.vault.yml

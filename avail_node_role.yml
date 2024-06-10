@@ -1,47 +1,43 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: CloudFormation Template to create an IAM Role for Avail Full Node Deployment
+Description: CloudFormation template to create an IAM user with EC2, S3, and IAM full access
 
 Resources:
-  AvailNodeRole:
-    Type: 'AWS::IAM::Role'
-    Properties:
-      RoleName: AvailNodeRole
-      AssumeRolePolicyDocument:
+  IAMUser:
+    Type: 'AWS::IAM::User'
+    Properties: 
+      UserName: 'AutomationUser'
+
+  IAMUserAccessKey:
+    Type: 'AWS::IAM::AccessKey'
+    Properties: 
+      UserName: !Ref IAMUser
+
+  IAMUserPolicy:
+    Type: 'AWS::IAM::Policy'
+    Properties: 
+      PolicyName: 'AutomationUserPolicy'
+      PolicyDocument:
         Version: '2012-10-17'
         Statement:
-          - Effect: Allow
-            Principal:
-              Service: 
-                - ec2.amazonaws.com
-                - ssm.amazonaws.com
-            Action: 'sts:AssumeRole'
-      Policies:
-        - PolicyName: EC2FullAccess
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action: 
-                  - 'ec2:*'
-                Resource: '*'
-        - PolicyName: S3FullAccess
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action: 
-                  - 's3:*'
-                Resource: '*'
-        - PolicyName: SSMFullAccess
-          PolicyDocument:
-            Version: '2012-10-17'
-            Statement:
-              - Effect: Allow
-                Action: 
-                  - 'ssm:*'
-                Resource: '*'
+          - Effect: 'Allow'
+            Action:
+              - 'ec2:*'
+              - 's3:*'
+              - 'iam:*'
+              - 'ssm:*'
+            Resource: '*'
+      Users: 
+        - !Ref IAMUser
 
 Outputs:
-  AvailNodeRoleArn:
-    Description: 'ARN of the IAM role for Avail Full Node deployment'
-    Value: !GetAtt AvailNodeRole.Arn
+  AccessKeyId:
+    Description: 'Access Key ID for IAM user'
+    Value: !Ref 'IAMUserAccessKey'
+    Export:
+      Name: 'AccessKey'
+
+  SecretAccessKey:
+    Description: 'Secret Access Key for IAM user'
+    Value: !GetAtt 'IAMUserAccessKey.SecretAccessKey'
+    Export:
+      Name: 'SecretKey'
