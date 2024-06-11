@@ -1,8 +1,8 @@
 ---
 - name: avail-full-node
   hosts: all
-  # vars_files:
-  #   - ../group_vars/avail-node-vars.yml
+  vars_files:
+    - ../group_vars/avail-node-vars.yml
   become: yes
   remote_user: ubuntu
   gather_facts: false
@@ -16,12 +16,26 @@
     - name: pinging
       ping:
 
+    - name: Update and Upgrade
+      shell: |
+        sudo apt update -y
+        sudo apt upgrade -y
+      register: result_update_upgrade
+
     - name: Install Git
       shell: |
-        sudo apt update
-        sudo apt upgrade -y
         sudo apt install git-all -y
       register: result_git_install
+
+    - name: Kill any apt-get or dpkg processes
+      shell: |
+        pids=$(pgrep -f 'apt-get|dpkg')
+        if [ -n "$pids" ]; then
+          sudo kill -9 $pids
+        fi
+      args:
+        executable: /bin/bash
+
 
     - name: Install required packages
       apt:
@@ -37,6 +51,7 @@
           - protobuf-compiler
           - wget
           - tar
+          - unzip
         state: present
         update_cache: yes
 
@@ -201,17 +216,27 @@
 
     - name: Install and Configure Loki
       shell: |
+        set -e
+
+        # Change to the temporary directory
         cd /tmp
+
+        # Download and unzip Loki
         wget https://github.com/grafana/loki/releases/download/v2.5.0/loki-linux-amd64.zip
         unzip loki-linux-amd64.zip
+
+        # Move the binary to the appropriate directory
         sudo mv loki-linux-amd64 /usr/local/bin/loki
+        sudo chmod +x /usr/local/bin/loki
         rm -f loki-linux-amd64.zip
 
+        # Create Loki user and directories
         sudo useradd --system --no-create-home --shell /bin/false loki
         sudo mkdir -p /etc/loki
         sudo chown loki:loki /etc/loki
 
-        sudo cat <<EOL > /etc/systemd/system/loki.service
+        # Create the systemd service file
+        sudo bash -c 'cat <<EOL > /etc/systemd/system/loki.service
         [Unit]
         Description=Loki Service
         After=network.target
@@ -224,10 +249,18 @@
 
         [Install]
         WantedBy=multi-user.target
-        EOL
+        EOL'
 
+        # Reload systemd to apply the new service file
+        sudo systemctl daemon-reload
+
+        # Enable and start the Loki service
         sudo systemctl enable loki
+        sleep 7
         sudo systemctl start loki
+      args:
+        executable: /bin/bash
+
 
     - name: Copy Loki configuration file
       copy:
@@ -235,22 +268,37 @@
         dest: /etc/loki/loki.yml
         owner: loki
         group: loki
+    
+    - name: Restart Loki service
+      systemd:
+        name: loki
+        state: restarted
 
     - name: Install and Configure Promtail
       shell: |
+        set -e
+
+        # Change to the temporary directory
         cd /tmp
+
+        # Download and unzip Promtail
         wget https://github.com/grafana/loki/releases/download/v2.5.0/promtail-linux-amd64.zip
         unzip promtail-linux-amd64.zip
+
+        # Move the binary to the appropriate directory
         sudo mv promtail-linux-amd64 /usr/local/bin/promtail
+        sudo chmod +x /usr/local/bin/promtail
         rm -f promtail-linux-amd64.zip
 
+        # Create Promtail user and directories
         sudo useradd --system --no-create-home --shell /bin/false promtail
         sudo mkdir -p /etc/promtail
         sudo mkdir -p /var/lib/promtail
         sudo chown promtail:promtail /etc/promtail
         sudo chown promtail:promtail /var/lib/promtail
 
-        sudo cat <<EOL > /etc/systemd/system/promtail.service
+        # Create the systemd service file
+        sudo bash -c 'cat <<EOL > /etc/systemd/system/promtail.service
         [Unit]
         Description=Promtail Service
         After=network.target
@@ -263,10 +311,18 @@
 
         [Install]
         WantedBy=multi-user.target
-        EOL
+        EOL'
 
+        # Reload systemd to apply the new service file
+        sudo systemctl daemon-reload
+
+        # Enable and start the Promtail service
         sudo systemctl enable promtail
+        sleep 7
         sudo systemctl start promtail
+      args:
+        executable: /bin/bash
+
 
     - name: Copy Promtail configuration file
       copy:
@@ -274,6 +330,11 @@
         dest: /etc/promtail/promtail.yml
         owner: promtail
         group: promtail
+
+    - name: Restart Promtail service
+      systemd:
+        name: promtail
+        state: restarted
 
     - name: Install Grafana
       shell: |
@@ -303,7 +364,6 @@
         dest: /etc/grafana/provisioning/dashboards/
       loop:
         - grafana/avail_node_dashboard.json
-        - grafana/substrate_advanced_dashboard.json
         - grafana/substrate_basic_dashboard.json
         - grafana/node_exporter_dashboard.json
 
@@ -361,7 +421,7 @@
         mkdir -p output
         curl -L -o avail-node.tar.gz https://github.com/availproject/avail/releases/download/v2.2.3.0-rc1/x86_64-ubuntu-2004-avail-node.tar.gz
         tar -xzvf avail-node.tar.gz
-        ./avail-node --name {{ node_name }} --chain turing -d ./output > /home/logs/node/node.log 2>&1 &
+        ./avail-node --name "{{ node_name }}" --chain turing -d ./output > /home/logs/node/node.log 2>&1 &
       args:
         executable: /bin/bash
       register: result_avail_node

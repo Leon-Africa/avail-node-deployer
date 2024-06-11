@@ -12,7 +12,9 @@ NOTE: Current version deploys to AWS cloud.
 
 We will be using an automated role to allow you to securely deploy your Avail Node to your AWS account:
 
-- Go to [AWS Console](https://aws.amazon.com/console/) > CloudFormation > Create stack > With new resources (standard).
+- Go to [AWS Console](https://aws.amazon.com/console/) 
+- In the console top right hand corner change region to ````eu-west-1```` [Ireland]
+- Select Service > CloudFormation > Create stack > With new resources (standard).
 - Select upload template and upload the file ```avail_node_role.yml``` from this repo and follow the prompts to create the stack.
 - Once deployed select the newly created stack.
 - Go to the **Outputs** tab.
@@ -25,7 +27,7 @@ Please ensure that you have [Docker](https://www.docker.com/products/docker-desk
 
 ````docker build -t avail-full-node-deployer .````
 
-````docker run -it avail-full-node-deployer````
+````docker run -it -w /home/avail avail-full-node-deployer```
 
 NOTE: You will deploy and access your Avail node from the Docker container.
 
@@ -48,7 +50,7 @@ That's it you will now have a fully running Avail Node in AWS with monitoring, o
 
 You can connect to your node in 2 ways. 
 
-1.  From AWS Console
+1.  From AWS Console [Make sure you change the region to eu-west-1 in the top right hand corner]
     
     Connect -> Session Manager -> Connect
 2. From the docker container:

@@ -1,19 +1,15 @@
-# promtail server config
 server:
   http_listen_port: 9080
   grpc_listen_port: 0
   log_level: info
 positions:
   filename: /var/lib/promtail/positions.yaml
-
-# loki servers
 clients:
-  - url: http://localhost:3100/loki/api/v1/push
+  - url: 'http://localhost:3100/loki/api/v1/push'
     backoff_config:
       min_period: 1m
       max_period: 1h
       max_retries: 10000
-
 scrape_configs:
   - job_name: journald
     journal:
@@ -29,16 +25,18 @@ scrape_configs:
                 firstline: '^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}'
                 max_lines: 2500
             - regex:
-                expression: '(?P<date>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3})\s+(?P<level>(TRACE|DEBUG|INFO|WARN|ERROR))\s+(?P<worker>([^\s]+))\s+(?P<target>[\w-]+):?:?(?P<subtarget>[\w-]+)?:[\s]?(?P<chaintype>\[[\w-]+\]+)?[\s]?(?P<message>.+)'
+                expression: >-
+                  (?P<date>\d{4}-\d{2}-\d{2}
+                  \d{2}:\d{2}:\d{2}\.\d{3})\s+(?P<level>(TRACE|DEBUG|INFO|WARN|ERROR))\s+(?P<worker>([^\s]+))\s+(?P<target>[\w-]+):?:?(?P<subtarget>[\w-]+)?:[\s]?(?P<chaintype>\[[\w-]+\]+)?[\s]?(?P<message>.+)
             - labels:
-                level:
-                target:
-                subtarget:
+                level: null
+                target: null
+                subtarget: null
             - metrics:
                 log_lines_total:
                   type: Counter
-                  Description: "Total Number of Chain Logs"
-                  prefix: "promtail_chain_"
+                  Description: Total Number of Chain Logs
+                  prefix: promtail_chain_
                   max_idle_duration: 24h
                   config:
                     match_all: true
@@ -52,8 +50,8 @@ scrape_configs:
             - metrics:
                 log_lines_total:
                   type: Counter
-                  Description: "Total Number of Chain Error Logs"
-                  prefix: "promtail_chain_error_"
+                  Description: Total Number of Chain Error Logs
+                  prefix: promtail_chain_error_
                   max_idle_duration: 24h
                   config:
                     match_all: true
@@ -67,25 +65,48 @@ scrape_configs:
             - metrics:
                 log_lines_total:
                   type: Counter
-                  Description: "Total Number of Chain Panic Logs"
-                  prefix: "promtail_chain_panic_"
+                  Description: Total Number of Chain Panic Logs
+                  prefix: promtail_chain_panic_
                   max_idle_duration: 24h
                   config:
                     match_all: true
                     action: inc
     relabel_configs:
-      - source_labels: ["__journal__systemd_unit"]
-        target_label: "unit"
-      - source_labels: ["unit"]
-        regex: "(.*.scope|user.*.service)"
+      - source_labels:
+          - __journal__systemd_unit
+        target_label: unit
+      - source_labels:
+          - unit
+        regex: (.*.scope|user.*.service)
         action: drop
-      - source_labels: ["__journal__hostname"]
-        target_label: "host"
+      - source_labels:
+          - __journal__hostname
+        target_label: host
       - action: replace
         source_labels:
           - __journal__cmdline
           - __journal__hostname
-        separator: ";"
-        regex: ".*--chain.*;(.*)"
-        target_label: "node"
+        separator: ;
+        regex: .*--chain.*;(.*)
+        target_label: node
         replacement: $1
+  - job_name: blockchain_node
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: blockchain_node
+          __path__: /home/logs/node/node.log
+    pipeline_stages:
+      - match:
+          selector: '{job="blockchain_node"}'
+          stages:
+            - multiline:
+                firstline: '^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}'
+                max_lines: 1000
+            - regex:
+                expression: >-
+                  (?P<timestamp>\d{4}-\d{2}-\d{2}
+                  \d{2}:\d{2}:\d{2})\s+(?P<message>.*)
+            - labels: null
+              timestamp: message

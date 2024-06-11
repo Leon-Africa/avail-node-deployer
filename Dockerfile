@@ -42,12 +42,7 @@ RUN apt-get update && \
     apt-get install -y terraform && \
     rm -rf /var/lib/apt/lists/*
 
-# Copy the deployment script and make it executable
-COPY deploy_script.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/deploy_script.sh
-
-# Set entrypoint to the deployment script
-ENTRYPOINT ["/usr/local/bin/deploy_script.sh"]
+COPY . /home/avail
 
 # Default command to keep the container running
 CMD ["/bin/bash"]

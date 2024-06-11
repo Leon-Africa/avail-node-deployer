@@ -96,6 +96,14 @@ resource "aws_security_group" "avail-node-sg" {
     cidr_blocks = ["${data.http.public_ip.body}/32"]
   }
 
+  # Inbound rule to allow traffic on port 3100 from the public IP of the host machine [to access Prometheus UI]
+  ingress {
+    from_port   = 3100
+    to_port     = 3100
+    protocol    = "tcp"
+    cidr_blocks = ["${data.http.public_ip.body}/32"]
+  }
+
   # Inbound rule to allow traffic on port 3000 from the public IP of the host machine [to access Prometheus UI]
   ingress {
     from_port   = 3000
