@@ -1,4 +1,4 @@
-# AVAIL NODE
+# AVAIL NODE DEPLOYER
 
 Multi-cloud automated deployment for an [Avail](https://www.availproject.org/) full node.
 
@@ -27,7 +27,7 @@ Please ensure that you have [Docker](https://www.docker.com/products/docker-desk
 
 ````docker build -t avail-full-node-deployer .````
 
-````docker run -it -w /home/avail avail-full-node-deployer```
+````docker run -it -w /home/avail avail-full-node-deployer````
 
 NOTE: You will deploy and access your Avail node from the Docker container.
 
