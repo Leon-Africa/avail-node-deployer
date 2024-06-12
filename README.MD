@@ -96,7 +96,7 @@ To clean up resources simply run ````terraform destroy```` from the ````terrafor
 
 Note: Do not delete your container before terraform destroy as your [state](https://developer.hashicorp.com/terraform/language/state) is in the container. If for some reason you have exited your container to access it again simply run:
 
-````docker exec -it launcher /bin/bash````
+````docker run -it -w /home/avail avail-full-node-deployer````
 
 
 # Improvements
