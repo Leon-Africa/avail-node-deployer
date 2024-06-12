@@ -41,7 +41,6 @@ Automatically deploy the infrastructure and configuration as code for a fully ru
 NOTE: 
 - when prompted for the ````AccessKey````  and ````SecretKey```` enter the values recieved from the Cloudformation deployment.
 - enter Default region name as ````eu-west-1```` and Default output format as ````json````
-- when prompted for Node name enter a name for your Avail Node
 
 
 That's it you will now have a fully running Avail Node in AWS with monitoring, observability and logging.
