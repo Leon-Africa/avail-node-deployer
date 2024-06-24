@@ -309,7 +309,6 @@
         owner: loki
         group: loki
         mode: '0644'
-      notify: Restart Loki
 
     - name: Create Promtail configuration directory
       file:
@@ -326,7 +325,6 @@
         owner: promtail
         group: promtail
         mode: '0644'
-      notify: Restart Promtail
 
     - name: Ensure correct permissions on Promtail positions file directory
       file:
