@@ -99,7 +99,7 @@ Note: Do not delete your container before terraform destroy as your [state](http
 ````docker start avail-deployer````
 
 
-````docker exec -it avail-deployer /bin/bash```
+````docker exec -it avail-deployer /bin/bash````
 
 
 # Improvements
