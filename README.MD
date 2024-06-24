@@ -27,7 +27,7 @@ Please ensure that you have [Docker](https://www.docker.com/products/docker-desk
 
 ````docker build -t avail-full-node-deployer .````
 
-````docker run -it -w /home/avail avail-full-node-deployer````
+````docker run -it -w /home/avail --name avail-deployer avail-full-node-deployer````
 
 NOTE: You will deploy and access your Avail node from the Docker container.
 
@@ -94,11 +94,12 @@ A host of dashboards are avaliable in Grafana with information about the running
 
 To clean up resources simply run ````terraform destroy```` from the ````terraform/aws```` directory.
 
-Note: Do not delete your container before terraform destroy as your [state](https://developer.hashicorp.com/terraform/language/state) is in the container. If for some reason you have exited your container to access it again simply run your container again then:
+Note: Do not delete your container before terraform destroy as your [state](https://developer.hashicorp.com/terraform/language/state) is in the container. If for some reason you have exited your container to access it start and access it with:
 
-````docker ps````` get the name for the container
+````docker start avail-deployer````
 
-````docker exec -it container_name /bin/bash````
+
+````docker exec -it avail-deployer /bin/bash```
 
 
 # Improvements
