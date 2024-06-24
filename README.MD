@@ -87,6 +87,8 @@ Note: Only accesible from the host machine you deployed from.
 
 Grafana has data source setup for [Loki](https://github.com/grafana/loki) which is used to aggregate logs from the Avail node. Query Avail Node data using [LogQl](https://grafana.com/docs/loki/latest/query/) from Grafana.
 
+Select Explore -> Select Loki (default is Prometheus) -> Label Filters ````[job=blockchain_node]```` then Run query to get the running Avail full node logs.
+
 ## Dashboards
 A host of dashboards are avaliable in Grafana with information about the running Avail node.
 
