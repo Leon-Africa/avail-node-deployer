@@ -192,9 +192,13 @@ resource "aws_volume_attachment" "avail_node" {
   force_detach = false
 }
 
-# Create S3 Bucket
+# Create S3 Bucket with unique name
+resource "random_id" "bucket_suffix" {
+  byte_length = 4
+}
+
 resource "aws_s3_bucket" "ssm_bucket" {
-  bucket = "avail-node-aws-ssm-connection-playbook"
+  bucket = "avail-node-aws-ssm-connection-playbook-${random_id.bucket_suffix.hex}"
 
   tags = {
     Name = "SSM Connection Bucket"
@@ -203,6 +207,11 @@ resource "aws_s3_bucket" "ssm_bucket" {
   lifecycle {
     prevent_destroy = false
   }
+}
+
+# Output the bucket name
+output "ssm_bucket_name" {
+  value = aws_s3_bucket.ssm_bucket.bucket
 }
 
 # Null resource to empty the S3 bucket before deletion
