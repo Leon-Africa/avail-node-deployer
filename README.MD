@@ -1,8 +1,6 @@
 # AVAIL NODE DEPLOYER
 
-Multi-cloud automated deployment for an [Avail](https://www.availproject.org/) full node.
-
-NOTE: Current version deploys to AWS cloud.
+AWS cloud automated deployment for an [Avail](https://www.availproject.org/) full node.
 
 # System Setup
 
@@ -38,9 +36,11 @@ Automatically deploy the infrastructure and configuration as code for a fully ru
 
 ````./deploy-avail-node.sh````
 
-NOTE: 
+NOTE 
+- This deployment is set to deploy your node/s to ```eu-west-1``` only
 - when prompted for the ````AccessKey````  and ````SecretKey```` enter the values recieved from the Cloudformation deployment.
-- enter Default region name as ````eu-west-1```` and Default output format as ````json````
+- default region is set ````eu-west-1```` [press enter]
+- default output format is set to ````json```` [press enter]
 
 
 That's it you will now have a fully running Avail Node in AWS with monitoring, observability and logging.

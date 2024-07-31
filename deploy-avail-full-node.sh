@@ -1,9 +1,14 @@
 #!/bin/bash
 
-echo "Automatically deploying the infrastructure and configuration as code for a fully running Avail Full Node with Monitoring, Logging, and Observability to your AWS account."
+echo "Automatically deploying the infrastructure and configuration as code for a fully running avail Node with Monitoring, Logging, and Observability to your AWS account."
 
 # Prompt user to configure AWS CLI
-echo "Configure your AWS CLI:"
+echo "setting region to eu-west-1 and output to json"
+aws configure set region eu-west-1
+aws configure set output json
+
+echo "Configuring the AWS CLI - please enter the values as per prompts:"
+echo "The access and secrect key are on the outputs tab for the Cloudformation Stack"
 aws configure
 
 # Check if AWS credentials are configured
@@ -38,6 +43,9 @@ echo "Initiating Infrastructure"
 # Deploy the node infrastructure automatically answering "yes" to any prompts
 yes yes | terraform apply -var="number_of_nodes=${number_of_nodes}"
 
+# Save the SSM bucket name to a file
+terraform output -raw ssm_bucket_name > ../../ansible/ssm_bucket_name.txt
+
 echo "Wait for SSM agent"
 sleep 30
 
@@ -49,6 +57,6 @@ ansible-galaxy install -r requirements.yml
 echo "Initiating Configuration"
 
 # Configure the node using Ansible with the dynamic inventory
-ansible-playbook -i inventory/aws_ec2.yml playbooks/avail-full-node.yml --flush-cache -vvv
+AWS_PROFILE=default ansible-playbook -i inventory/aws_ec2.yml playbooks/avail-full-node.yml --extra-vars "ssm_bucket_name=$(cat ssm_bucket_name.txt)" --flush-cache -vvv
 
 echo "Avail Node Deployment complete!"
